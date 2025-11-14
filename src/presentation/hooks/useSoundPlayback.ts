@@ -7,7 +7,7 @@
  * KISS: Simple hook wrapper around store
  */
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useSoundPlaybackStore } from '../../infrastructure/storage/SoundPlaybackStore';
 import { audioPlaybackService } from '../../infrastructure/services/AudioPlaybackService';
 import type { Sound, SoundPlaybackOptions } from '../../domain/entities/Sound.entity';
@@ -51,43 +51,46 @@ export function useSoundPlayback(options: UseSoundPlaybackOptions = {}) {
   /**
    * Play a sound
    */
-  const playSound = async (
-    sound: Sound,
-    playbackOptions?: SoundPlaybackOptions,
-    onDownloadProgress?: (progress: number) => void
-  ) => {
-    // Create resolver with storage service
-    const resolver = new SoundSourceResolver(options.storageService);
+  const playSound = useCallback(
+    async (
+      sound: Sound,
+      playbackOptions?: SoundPlaybackOptions,
+      onDownloadProgress?: (progress: number) => void
+    ) => {
+      // Create resolver with storage service
+      const resolver = new SoundSourceResolver(options.storageService);
 
-    // Progress callback wrapper
-    const progressCallback = onDownloadProgress
-      ? (progress: number) => {
-          useSoundPlaybackStore.setState({
-            downloadingSoundId: sound.id,
-            downloadProgress: Math.round(progress * 100),
-          });
-          onDownloadProgress(progress);
-        }
-      : undefined;
+      // Progress callback wrapper
+      const progressCallback = onDownloadProgress
+        ? (progress: number) => {
+            useSoundPlaybackStore.setState({
+              downloadingSoundId: sound.id,
+              downloadProgress: Math.round(progress * 100),
+            });
+            onDownloadProgress(progress);
+          }
+        : undefined;
 
-    // Resolve source
-    const resolved = await resolver.resolve(sound, progressCallback);
-    if (!resolved) {
-      throw new Error(`Cannot resolve audio source for sound: ${sound.id}`);
-    }
+      // Resolve source
+      const resolved = await resolver.resolve(sound, progressCallback);
+      if (!resolved) {
+        throw new Error(`Cannot resolve audio source for sound: ${sound.id}`);
+      }
 
-    // Pass resolved source to store via metadata
-    const soundWithSource: Sound = {
-      ...sound,
-      metadata: {
-        ...sound.metadata,
-        _resolvedSource: resolved.source,
-        _isStreaming: resolved.isStreaming,
-      },
-    };
+      // Pass resolved source to store via metadata
+      const soundWithSource: Sound = {
+        ...sound,
+        metadata: {
+          ...sound.metadata,
+          _resolvedSource: resolved.source,
+          _isStreaming: resolved.isStreaming,
+        },
+      };
 
-    await store.playSound(soundWithSource, playbackOptions, onDownloadProgress);
-  };
+      await store.playSound(soundWithSource, playbackOptions, onDownloadProgress);
+    },
+    [options.storageService, store]
+  );
 
   return {
     /** Play a sound */
