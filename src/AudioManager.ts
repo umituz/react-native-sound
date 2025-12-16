@@ -14,12 +14,12 @@ class AudioManager {
         try {
             await Audio.setAudioModeAsync({
                 playsInSilentModeIOS: true,
-                staysActiveInBackground: true,
+                staysActiveInBackground: false,
                 shouldDuckAndroid: true,
                 playThroughEarpieceAndroid: false,
             });
         } catch (error) {
-            console.warn('Failed to configure audio session', error);
+            if (__DEV__) console.warn('Failed to configure audio session', error);
         }
     }
 
@@ -48,16 +48,16 @@ class AudioManager {
     async play(id: string, source: SoundSource, options?: PlaybackOptions) {
         const store = useSoundStore.getState();
 
+        if (__DEV__) console.log('[AudioManager] Play called with ID:', id);
+
         // If same ID is playing/pausing
         if (this.currentId === id && this.sound) {
             const status = await this.sound.getStatusAsync();
             if (status.isLoaded) {
                 if (status.isPlaying) {
-                    // If already playing, maybe they want to restart? Or just return?
-                    // User wanted "toggle" behavior usually in the app, but the manager should be explicit.
-                    // Let's assume play() means resume or restart.
                     return;
                 } else {
+                    if (__DEV__) console.log('[AudioManager] Resuming existing sound');
                     await this.sound.playAsync();
                     return;
                 }
@@ -72,6 +72,8 @@ class AudioManager {
             store.setCurrent(id, source);
             store.setError(null);
 
+            if (__DEV__) console.log('[AudioManager] Creating sound from source:', source);
+
             const { sound } = await Audio.Sound.createAsync(
                 source as any,
                 {
@@ -85,9 +87,12 @@ class AudioManager {
             );
 
             this.sound = sound;
+            if (__DEV__) console.log('[AudioManager] Sound created and playing');
         } catch (error: any) {
+            if (__DEV__) console.error('[AudioManager] Error playing sound:', error);
             store.setError(error.message);
             this.currentId = null;
+            throw error;
         }
     }
 
