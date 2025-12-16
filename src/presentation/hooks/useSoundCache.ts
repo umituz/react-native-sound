@@ -58,6 +58,10 @@ export function useSoundCache(): UseSoundCacheResult {
     }
   }, []);
 
+  const getCacheSize = useCallback(async (): Promise<number> => {
+    return soundCacheService.getCacheSize();
+  }, []);
+
   const isCached = useCallback(
     async (sound: Sound): Promise<boolean> => {
       if (!sound.filename) {
@@ -99,11 +103,12 @@ export function useSoundCache(): UseSoundCacheResult {
     isCached,
     getCachedUri,
     clearCache,
-    getCacheSize: refreshCacheSize,
+    getCacheSize,
     deleteCachedSound,
     cacheSize,
     isLoadingCacheSize,
     refreshCacheSize,
   };
 }
+
 

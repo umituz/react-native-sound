@@ -12,10 +12,11 @@
     "baseUrl": "./",
 
     /* Emit */
-    "declaration": false,
-    "declarationMap": false,
-    "sourceMap": false,
-    "noEmit": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noEmit": false,
+    "outDir": "./lib",
     "removeComments": false,
 
     /* Interop Constraints */
@@ -56,4 +57,5 @@
     "**/*.spec.tsx"
   ]
 }
+
 
