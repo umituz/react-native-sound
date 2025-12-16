@@ -1,4 +1,4 @@
-import { Audio, AVPlaybackStatus, AVPlaybackStatusSuccess } from 'expo-av';
+import { Audio, AVPlaybackStatus, AVPlaybackStatusSuccess, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { useSoundStore } from './store';
 import { PlaybackOptions, SoundSource } from './types';
 
@@ -17,6 +17,8 @@ class AudioManager {
                 staysActiveInBackground: false,
                 shouldDuckAndroid: true,
                 playThroughEarpieceAndroid: false,
+                interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+                interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
             });
         } catch (error) {
             if (__DEV__) console.warn('Failed to configure audio session', error);
