@@ -16,7 +16,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "noEmit": false,
-    "outDir": "./lib",
+    "noEmit": true,
     "removeComments": false,
 
     /* Interop Constraints */
