@@ -43,3 +43,19 @@ export function isPlaybackStatusSuccess(status: AVPlaybackStatus): status is Pla
 export function isSoundSourceValid(source: SoundSource): source is number | { uri: string; headers?: Record<string, string> } {
     return source !== null && source !== undefined;
 }
+
+export function validateVolume(volume: number): boolean {
+    return typeof volume === 'number' && volume >= 0 && volume <= 1;
+}
+
+export function validateRate(rate: number): boolean {
+    return typeof rate === 'number' && rate >= 0.5 && rate <= 2.0;
+}
+
+export function clampVolume(volume: number): number {
+    return Math.max(0, Math.min(1, volume));
+}
+
+export function clampRate(rate: number): number {
+    return Math.max(0.5, Math.min(2.0, rate));
+}
