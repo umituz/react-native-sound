@@ -1,6 +1,6 @@
-import { Audio, AVPlaybackStatus, AVPlaybackStatusSuccess, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
+import { Audio, AVPlaybackStatus, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { useSoundStore } from './store';
-import { PlaybackOptions, SoundSource } from './types';
+import { PlaybackOptions, SoundSource, isPlaybackStatusSuccess, isSoundSourceValid } from './types';
 
 class AudioManager {
     private sound: Audio.Sound | null = null;
@@ -28,7 +28,7 @@ class AudioManager {
     private onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
         const store = useSoundStore.getState();
 
-        if (!status.isLoaded) {
+        if (!isPlaybackStatusSuccess(status)) {
             if (status.error) {
                 store.setError(status.error);
                 store.setPlaying(false);
@@ -36,14 +36,13 @@ class AudioManager {
             return;
         }
 
-        const s = status as AVPlaybackStatusSuccess;
-        store.setPlaying(s.isPlaying);
-        store.setBuffering(s.isBuffering);
-        store.setProgress(s.positionMillis, s.durationMillis || 0);
+        store.setPlaying(status.isPlaying);
+        store.setBuffering(status.isBuffering);
+        store.setProgress(status.positionMillis, status.durationMillis || 0);
 
-        if (s.didJustFinish && !s.isLooping) {
+        if (status.didJustFinish && !status.isLooping) {
             store.setPlaying(false);
-            store.setProgress(s.durationMillis || 0, s.durationMillis || 0);
+            store.setProgress(status.durationMillis || 0, status.durationMillis || 0);
         }
     };
 
@@ -52,7 +51,12 @@ class AudioManager {
 
         if (__DEV__) console.log('[AudioManager] Play called with ID:', id);
 
-        // If same ID is playing/pausing
+        if (!isSoundSourceValid(source)) {
+            const errorMsg = 'Invalid sound source: source is null or undefined';
+            store.setError(errorMsg);
+            throw new Error(errorMsg);
+        }
+
         if (this.currentId === id && this.sound) {
             const status = await this.sound.getStatusAsync();
             if (status.isLoaded) {
@@ -67,7 +71,6 @@ class AudioManager {
         }
 
         try {
-            // Unload previous sound
             await this.unload();
 
             this.currentId = id;
@@ -77,7 +80,7 @@ class AudioManager {
             if (__DEV__) console.log('[AudioManager] Creating sound from source:', source);
 
             const { sound } = await Audio.Sound.createAsync(
-                source as any,
+                source,
                 {
                     shouldPlay: true,
                     isLooping: options?.isLooping ?? false,
@@ -90,9 +93,10 @@ class AudioManager {
 
             this.sound = sound;
             if (__DEV__) console.log('[AudioManager] Sound created and playing');
-        } catch (error: any) {
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
             if (__DEV__) console.error('[AudioManager] Error playing sound:', error);
-            store.setError(error.message);
+            store.setError(errorMessage);
             this.currentId = null;
             throw error;
         }
