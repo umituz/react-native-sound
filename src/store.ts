@@ -1,4 +1,4 @@
-import { createStore } from '@umituz/react-native-storage';
+import { createStore } from '@umituz/react-native-design-system/storage';
 import type { SoundState, SoundSource } from './types';
 
 interface SoundActions {
