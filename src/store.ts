@@ -8,6 +8,8 @@ interface SoundActions {
     setError: (error: string | null) => void;
     setCurrent: (id: string | null, source: SoundSource | null) => void;
     setVolumeState: (volume: number) => void;
+    setRateState: (rate: number) => void;
+    setLooping: (isLooping: boolean) => void;
     reset: () => void;
 }
 
@@ -18,6 +20,7 @@ const initialSoundState: SoundState = {
     durationMillis: 0,
     volume: 1.0,
     rate: 1.0,
+    isLooping: false,
     error: null,
     currentSource: null,
     currentId: null,
@@ -35,6 +38,8 @@ export const useSoundStore = createStore<SoundState, SoundActions>({
         setError: (error) => set({ error }),
         setCurrent: (id, source) => set({ currentId: id, currentSource: source }),
         setVolumeState: (volume) => set({ volume }),
+        setRateState: (rate) => set({ rate }),
+        setLooping: (isLooping) => set({ isLooping }),
         reset: () => set(initialSoundState),
     }),
 });

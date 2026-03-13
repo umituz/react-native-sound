@@ -1,9 +1,11 @@
-/**
- * @umituz/react-native-sound
- * Universal sound playback library with caching
- */
-
-export * from './types';
-export * from './useSound';
+export type { SoundSource, PlaybackOptions, SoundState } from './types';
+export {
+    isPlaybackStatusSuccess,
+    isSoundSourceValid,
+    clampVolume,
+    clampRate,
+    validateSoundId,
+} from './utils';
 export { audioManager } from './AudioManager';
+export { useSound } from './useSound';
 export { useSoundStore } from './store';

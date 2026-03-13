@@ -1,36 +1,45 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useSoundStore } from './store';
 import { audioManager } from './AudioManager';
 import { PlaybackOptions, SoundSource } from './types';
 
-export const useSound = () => {
+export const useSound = (): {
+    play: (id: string, source: SoundSource, options?: PlaybackOptions) => Promise<void>;
+    pause: () => Promise<void>;
+    resume: () => Promise<void>;
+    stop: () => Promise<void>;
+    seek: (positionMillis: number) => Promise<void>;
+    setVolume: (vol: number) => Promise<void>;
+    setRate: (rate: number) => Promise<void>;
+    preload: (id: string, source: SoundSource, options?: PlaybackOptions) => Promise<void>;
+    unload: () => Promise<void>;
+    clearCache: () => void;
+    isCached: (id: string) => boolean;
+    isPlaying: boolean;
+    isBuffering: boolean;
+    isLooping: boolean;
+    position: number;
+    duration: number;
+    currentId: string | null;
+    error: string | null;
+    volume: number;
+    rate: number;
+} => {
     const isPlaying = useSoundStore((state) => state.isPlaying);
     const isBuffering = useSoundStore((state) => state.isBuffering);
+    const isLooping = useSoundStore((state) => state.isLooping);
     const position = useSoundStore((state) => state.positionMillis);
     const duration = useSoundStore((state) => state.durationMillis);
     const currentId = useSoundStore((state) => state.currentId);
     const error = useSoundStore((state) => state.error);
     const volume = useSoundStore((state) => state.volume);
-
-    useEffect(() => {
-        return () => {
-            if (__DEV__) console.log('[useSound] Cleanup on unmount');
-        };
-    }, []);
+    const rate = useSoundStore((state) => state.rate);
 
     const play = useCallback(
         async (id: string, source: SoundSource, options?: PlaybackOptions) => {
-            if (currentId === id) {
-                if (isPlaying) {
-                    await audioManager.pause();
-                } else {
-                    await audioManager.resume();
-                }
-            } else {
-                await audioManager.play(id, source, options);
-            }
+            await audioManager.play(id, source, options);
         },
-        [currentId, isPlaying]
+        []
     );
 
     const pause = useCallback(async () => {
@@ -87,10 +96,12 @@ export const useSound = () => {
         isCached,
         isPlaying,
         isBuffering,
+        isLooping,
         position,
         duration,
         currentId,
         error,
         volume,
+        rate,
     };
 };

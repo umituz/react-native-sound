@@ -1,13 +1,13 @@
 import { Audio, AVPlaybackStatus, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { useSoundStore } from './store';
+import { PlaybackOptions, SoundSource } from './types';
 import {
-    PlaybackOptions,
-    SoundSource,
     isPlaybackStatusSuccess,
     isSoundSourceValid,
     clampVolume,
     clampRate,
-} from './types';
+    validateSoundId,
+} from './utils';
 
 interface CachedSound {
     sound: Audio.Sound;
@@ -23,7 +23,9 @@ class AudioManager {
     private readonly cacheExpireMs = 5 * 60 * 1000;
 
     constructor() {
-        this.configureAudio();
+        this.configureAudio().catch((error) => {
+            if (__DEV__) console.error('[AudioManager] Failed to configure audio on initialization:', error);
+        });
     }
 
     private async configureAudio() {
@@ -56,6 +58,10 @@ class AudioManager {
         store.setBuffering(status.isBuffering);
         store.setProgress(status.positionMillis, status.durationMillis || 0);
 
+        if (status.isLoaded) {
+            store.setRateState(status.rate || 1.0);
+        }
+
         if (status.didJustFinish && !status.isLooping) {
             store.setPlaying(false);
             store.setProgress(status.durationMillis || 0, status.durationMillis || 0);
@@ -66,7 +72,9 @@ class AudioManager {
         const now = Date.now();
         for (const [id, cached] of this.cache) {
             if (now - cached.loadedAt > this.cacheExpireMs) {
-                cached.sound.unloadAsync().catch(() => {});
+                cached.sound.unloadAsync().catch((error) => {
+                    if (__DEV__) console.warn('[AudioManager] Failed to unload expired cache:', id, error);
+                });
                 this.cache.delete(id);
                 if (__DEV__) console.log('[AudioManager] Expired cache removed:', id);
             }
@@ -78,14 +86,20 @@ class AudioManager {
             const firstKey = this.cache.keys().next().value;
             if (firstKey) {
                 const cached = this.cache.get(firstKey);
-                cached?.sound.unloadAsync().catch(() => {});
+                cached?.sound.unloadAsync().catch((error) => {
+                    if (__DEV__) console.warn('[AudioManager] Failed to unload sound during cache limit enforcement:', firstKey, error);
+                });
                 this.cache.delete(firstKey);
                 if (__DEV__) console.log('[AudioManager] Cache limit enforced, removed:', firstKey);
             }
         }
     }
 
-    async preload(id: string, source: SoundSource, options?: PlaybackOptions) {
+    async preload(id: string, source: SoundSource, options?: PlaybackOptions): Promise<void> {
+        if (!validateSoundId(id)) {
+            throw new Error('Invalid sound id: id must be a non-empty string');
+        }
+
         if (!isSoundSourceValid(source)) {
             throw new Error('Invalid sound source: source is null or undefined');
         }
@@ -122,10 +136,16 @@ class AudioManager {
         }
     }
 
-    async play(id: string, source: SoundSource, options?: PlaybackOptions) {
+    async play(id: string, source: SoundSource, options?: PlaybackOptions): Promise<void> {
         const store = useSoundStore.getState();
 
         if (__DEV__) console.log('[AudioManager] Play called with ID:', id);
+
+        if (!validateSoundId(id)) {
+            const errorMsg = 'Invalid sound id: id must be a non-empty string';
+            store.setError(errorMsg);
+            throw new Error(errorMsg);
+        }
 
         if (!isSoundSourceValid(source)) {
             const errorMsg = 'Invalid sound source: source is null or undefined';
@@ -137,9 +157,12 @@ class AudioManager {
             const status = await this.sound.getStatusAsync();
             if (status.isLoaded) {
                 if (status.isPlaying) {
+                    store.setPlaying(false);
+                    await this.sound.pauseAsync();
                     return;
                 } else {
                     if (__DEV__) console.log('[AudioManager] Resuming existing sound');
+                    store.setPlaying(true);
                     await this.sound.playAsync();
                     return;
                 }
@@ -151,6 +174,7 @@ class AudioManager {
 
             const volume = options?.volume !== undefined ? clampVolume(options.volume) : 1.0;
             const rate = options?.rate !== undefined ? clampRate(options.rate) : 1.0;
+            const isLooping = options?.isLooping ?? false;
 
             const cached = this.cache.get(id);
             if (cached) {
@@ -162,7 +186,7 @@ class AudioManager {
                     source,
                     {
                         shouldPlay: true,
-                        isLooping: options?.isLooping ?? false,
+                        isLooping,
                         volume,
                         rate,
                         positionMillis: options?.positionMillis ?? 0,
@@ -176,53 +200,88 @@ class AudioManager {
             this.currentId = id;
             store.setCurrent(id, source);
             store.setError(null);
+            store.setLooping(isLooping);
+            store.setRateState(rate);
+            store.setVolumeState(volume);
 
-            if (!cached) {
-                await this.sound?.playAsync();
-            } else {
-                await this.sound?.setVolumeAsync(volume);
-                await this.sound?.setRateAsync(rate, false);
-                await this.sound?.playAsync();
-            }
+            await this.sound?.playAsync();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
             if (__DEV__) console.error('[AudioManager] Error playing sound:', error);
             store.setError(errorMessage);
             this.currentId = null;
+            this.sound = null;
             throw error;
         }
     }
 
-    async pause() {
+    async pause(): Promise<void> {
         if (this.sound) {
-            await this.sound.pauseAsync();
-        }
-    }
-
-    async resume() {
-        if (this.sound) {
-            await this.sound.playAsync();
-        }
-    }
-
-    async stop() {
-        if (this.sound) {
-            await this.sound.stopAsync();
-            useSoundStore.getState().setPlaying(false);
-            useSoundStore.getState().setProgress(0, 0);
-        }
-    }
-
-    async seek(positionMillis: number) {
-        if (this.sound) {
-            const status = await this.sound.getStatusAsync();
-            if (status.isLoaded) {
-                await this.sound.setStatusAsync({ positionMillis: Math.max(0, positionMillis) });
+            try {
+                await this.sound.pauseAsync();
+                useSoundStore.getState().setPlaying(false);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Failed to pause sound';
+                if (__DEV__) console.error('[AudioManager] Error pausing sound:', error);
+                useSoundStore.getState().setError(errorMessage);
+                throw error;
             }
         }
     }
 
-    async setVolume(volume: number) {
+    async resume(): Promise<void> {
+        if (this.sound) {
+            try {
+                await this.sound.playAsync();
+                useSoundStore.getState().setPlaying(true);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Failed to resume sound';
+                if (__DEV__) console.error('[AudioManager] Error resuming sound:', error);
+                useSoundStore.getState().setError(errorMessage);
+                throw error;
+            }
+        }
+    }
+
+    async stop(): Promise<void> {
+        if (this.sound) {
+            try {
+                await this.sound.stopAsync();
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Failed to stop sound';
+                if (__DEV__) console.error('[AudioManager] Error stopping sound:', error);
+                useSoundStore.getState().setError(errorMessage);
+                useSoundStore.getState().setPlaying(false);
+                useSoundStore.getState().setProgress(0, 0);
+                throw error;
+            }
+        }
+    }
+
+    async seek(positionMillis: number): Promise<void> {
+        if (!Number.isFinite(positionMillis)) {
+            throw new Error('Invalid position: positionMillis must be a finite number');
+        }
+
+        if (this.sound) {
+            try {
+                const status = await this.sound.getStatusAsync();
+                if (status.isLoaded) {
+                    const clampedPosition = Math.max(0, Math.min(status.durationMillis || 0, positionMillis));
+                    await this.sound.setStatusAsync({ positionMillis: clampedPosition });
+                } else {
+                    throw new Error('Cannot seek: sound is not loaded');
+                }
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Failed to seek sound';
+                if (__DEV__) console.error('[AudioManager] Error seeking sound:', error);
+                useSoundStore.getState().setError(errorMessage);
+                throw error;
+            }
+        }
+    }
+
+    async setVolume(volume: number): Promise<void> {
         if (this.sound) {
             const clampedVolume = clampVolume(volume);
             await this.sound.setVolumeAsync(clampedVolume);
@@ -230,21 +289,25 @@ class AudioManager {
         }
     }
 
-    async setRate(rate: number) {
+    async setRate(rate: number): Promise<void> {
         if (this.sound) {
             const clampedRate = clampRate(rate);
             const status = await this.sound.getStatusAsync();
             if (status.isLoaded) {
                 try {
                     await this.sound.setRateAsync(clampedRate, false);
+                    useSoundStore.getState().setRateState(clampedRate);
                 } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : 'Failed to set rate';
                     if (__DEV__) console.warn('[AudioManager] Could not set rate:', error);
+                    useSoundStore.getState().setError(errorMessage);
+                    throw error;
                 }
             }
         }
     }
 
-    async unload() {
+    async unload(): Promise<void> {
         if (this.sound) {
             try {
                 await this.sound.unloadAsync();
@@ -257,16 +320,14 @@ class AudioManager {
         useSoundStore.getState().reset();
     }
 
-    clearCache() {
+    clearCache(): void {
         for (const cached of this.cache.values()) {
-            cached.sound.unloadAsync().catch(() => {});
+            cached.sound.unloadAsync().catch((error) => {
+                if (__DEV__) console.warn('[AudioManager] Failed to unload sound during cache clear:', error);
+            });
         }
         this.cache.clear();
         if (__DEV__) console.log('[AudioManager] Cache cleared');
-    }
-
-    getCurrentId() {
-        return this.currentId;
     }
 
     isCached(id: string): boolean {
