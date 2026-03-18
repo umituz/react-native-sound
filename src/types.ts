@@ -1,10 +1,9 @@
 /**
- * @umituz/react-native-sound Types
+ * Public Types
  */
 
-import { AVPlaybackStatus } from 'expo-av';
-
-export type SoundSource = number | { uri: string; headers?: Record<string, string> } | null;
+export type { SoundSourceValue } from './domain/value-objects/SoundSource';
+export type { SoundStateData } from './domain/entities/SoundState';
 
 export interface PlaybackOptions {
     isLooping?: boolean;
@@ -22,6 +21,8 @@ export interface SoundState {
     rate: number;
     isLooping: boolean;
     error: string | null;
-    currentSource: SoundSource | null;
+    currentSource: any;
     currentId: string | null;
 }
+
+export type SoundSource = number | { uri: string; headers?: Record<string, string> } | null;

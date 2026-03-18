@@ -1,30 +1,26 @@
 /**
- * @umituz/react-native-sound Utility Functions
+ * Utility Functions - Backward Compatibility
  */
 
-import { AVPlaybackStatus, AVPlaybackStatusSuccess } from 'expo-av';
-import type { SoundSource } from './types';
-
-type PlaybackStatusSuccess = AVPlaybackStatusSuccess;
-
-export function isPlaybackStatusSuccess(status: AVPlaybackStatus): status is PlaybackStatusSuccess {
-    return status.isLoaded;
-}
-
-export function isSoundSourceValid(source: SoundSource): source is number | { uri: string; headers?: Record<string, string> } {
-    return source !== null && source !== undefined;
-}
+import { Volume } from './domain/value-objects/Volume';
+import { Rate } from './domain/value-objects/Rate';
 
 export function clampVolume(volume: number): number {
-    if (!Number.isFinite(volume)) return 1.0;
-    return Math.max(0, Math.min(1, volume));
+    return new Volume(volume).getValue();
 }
 
 export function clampRate(rate: number): number {
-    if (!Number.isFinite(rate)) return 1.0;
-    return Math.max(0.5, Math.min(2.0, rate));
+    return new Rate(rate).getValue();
 }
 
 export function validateSoundId(id: string): boolean {
     return typeof id === 'string' && id.trim().length > 0;
+}
+
+export function isSoundSourceValid(source: any): boolean {
+    return source !== null && source !== undefined;
+}
+
+export function isPlaybackStatusSuccess(status: any): boolean {
+    return status.isLoaded === true;
 }
