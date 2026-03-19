@@ -2,7 +2,7 @@
  * Sound Cache Interface
  */
 
-import { SoundSourceValue } from '../../domain/value-objects/SoundSource';
+import type { SoundSourceValue } from '../../domain/value-objects';
 
 export interface CachedSound {
     sound: unknown;
@@ -12,10 +12,8 @@ export interface CachedSound {
 
 export interface ISoundCache {
     get(id: string): CachedSound | undefined;
-    set(id: string, cached: CachedSound): void;
-    delete(id: string): void;
+    set(id: string, cached: CachedSound): Promise<void>;
+    delete(id: string): Promise<void>;
     has(id: string): boolean;
-    clear(): void;
-    cleanExpired(): void;
-    enforceLimit(): void;
+    clear(): Promise<void>;
 }

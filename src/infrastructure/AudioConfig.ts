@@ -3,7 +3,6 @@
  */
 
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
-import type { Audio as AudioType } from 'expo-av';
 import { Logger } from './Logger';
 
 export class AudioConfig {

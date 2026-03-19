@@ -3,7 +3,7 @@
  */
 
 import type { AVPlaybackStatus } from 'expo-av';
-import { SoundSourceValue } from '../../domain/value-objects/SoundSource';
+import type { SoundSourceValue } from '../../domain/value-objects';
 
 export interface PlaybackStatus {
     isLoaded: boolean;

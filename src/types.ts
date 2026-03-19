@@ -2,8 +2,7 @@
  * Public Types
  */
 
-export type { SoundSourceValue } from './domain/value-objects/SoundSource';
-export type { SoundStateData } from './domain/entities/SoundState';
+export type { SoundSourceValue } from './domain/value-objects';
 
 export interface PlaybackOptions {
     isLooping?: boolean;

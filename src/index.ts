@@ -1,41 +1,50 @@
 /**
  * @umituz/react-native-sound
  * DDD-based audio management for React Native
+ * Optimized architecture with minimal code duplication
  */
 
-// Public API
-export { useSound } from './presentation/hooks/useSound';
-export { useSoundStore } from './presentation/store';
+// ===== Public API =====
+export { useSound } from './presentation/useSound';
+export { useSoundStore, setupEventListeners } from './presentation/SoundStore';
 
-// Types
+// ===== Types =====
 export type { PlaybackOptions, SoundState, SoundSource } from './types';
+export type { PlaybackStatus, PlaybackOptions as ServicePlaybackOptions } from './application/interfaces/IAudioService';
+export type { CachedSound, ISoundCache } from './application/interfaces/ISoundCache';
 
-// Utilities (backward compatibility)
+// ===== Domain (Advanced Usage) =====
+export { SoundError, SoundErrorCode } from './domain/errors/SoundError';
+export {
+    SoundId,
+    SoundSource as SoundSourceVO,
+    Volume,
+    Rate,
+    PlaybackPosition,
+    SoundValueObjects,
+    type SoundSourceValue,
+} from './domain/value-objects';
+
+// ===== Infrastructure (Testing/Customization) =====
+export { Logger } from './infrastructure/Logger';
+export { AudioConfig } from './infrastructure/AudioConfig';
+export { AudioRepository } from './infrastructure/AudioRepository';
+
+// ===== Application (Testing/Customization) =====
+export { SoundService } from './application/SoundService';
+export { SoundCommandProcessor, type SoundCommand, type PlayCommand, type PreloadCommand } from './application/SoundCommands';
+export { SoundEvents, type SoundEvent, type PlaybackStartedEvent } from './application/SoundEvents';
+
+// ===== Utilities =====
 export {
     clampVolume,
     clampRate,
     validateSoundId,
     isSoundSourceValid,
     isPlaybackStatusSuccess,
+    debounce,
+    throttle,
+    RateLimiter,
+    PeriodicTask,
+    AutoGCWeakCache,
 } from './utils';
-
-// Domain exports (for advanced usage)
-export { SoundError } from './domain/errors/SoundError';
-export { SoundId } from './domain/value-objects/SoundId';
-export { SoundSource as SoundSourceVO } from './domain/value-objects/SoundSource';
-export { Volume } from './domain/value-objects/Volume';
-export { Rate } from './domain/value-objects/Rate';
-export { PlaybackPosition } from './domain/value-objects/PlaybackPosition';
-export { SoundState as SoundStateEntity } from './domain/entities/SoundState';
-
-// Infrastructure exports (for testing/customization)
-export { Logger } from './infrastructure/Logger';
-export { AudioConfig } from './infrastructure/AudioConfig';
-export { ExpoAudioService } from './infrastructure/ExpoAudioService';
-export { SoundCache } from './infrastructure/SoundCache';
-
-// Application exports (for testing/customization)
-export { SoundServiceFacade } from './application/SoundServiceFacade';
-export type { IAudioService, PlaybackStatus } from './application/interfaces/IAudioService';
-export type { ISoundCache, CachedSound } from './application/interfaces/ISoundCache';
-export { SoundPresenter } from './application/presenters/SoundPresenter';
